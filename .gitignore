@@ -1,0 +1,4 @@
+task1/cdan_model_finetuned_lambda_0.7.pth
+task1/dan_model_finetuned_lambda_0.7.pth
+task1/dann_model_finetuned.pth
+task1/source_only_model.pth
