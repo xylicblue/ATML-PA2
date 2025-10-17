@@ -1,191 +1,190 @@
-Domain Generalization with Invariant & Robust Learning
+# 🌍 Domain Generalization with Invariant & Robust Learning
 
-This project explores various Domain Generalization (DG) techniques to train a model that is robust to domain shifts. The goal is to train a model on several source domains and have it generalize effectively to a completely unseen target domain without any form of adaptation at test time.
+This project explores **Domain Generalization (DG)** techniques to train models that are **robust to domain shifts** — i.e., capable of generalizing to unseen domains without adaptation at test time.
 
-This notebook implements and compares four distinct DG strategies:
+The experiments compare four DG strategies using the **PACS dataset**, with the following setup:
 
-Empirical Risk Minimization (ERM): The standard baseline.
+- **Source Domains:** `art_painting`, `cartoon`, `photo`
+- **Unseen Target Domain:** `sketch`
 
-Invariant Risk Minimization (IRM): A method that seeks domain-invariant feature representations.
+---
 
-Group Distributionally Robust Optimization (Group DRO): An approach that optimizes for worst-case performance across source domains.
+## 📑 Table of Contents
 
-Sharpness-Aware Minimization (SAM): An optimizer that seeks flat minima in the loss landscape to improve generalization.
+1. [Overview](#overview)
+2. [Setup and Data Preparation](#1-setup-and-data-preparation)
+3. [Model Architecture](#2-model-architecture)
+4. [Experiment 1: Empirical Risk Minimization (ERM)](#3-experiment-1-empirical-risk-minimization-erm)
+5. [Experiment 2: Invariant Risk Minimization (IRM)](#4-experiment-2-invariant-risk-minimization-irm)
+6. [Experiment 3: Group Distributionally Robust Optimization (Group-DRO)](#5-experiment-3-group-distributionally-robust-optimization-group-dro)
+7. [Experiment 4: Sharpness-Aware Minimization (SAM)](#6-experiment-4-sharpness-aware-minimization-sam)
+8. [Analysis and Visualization](#7-analysis-and-visualization)
+9. [Results Summary](#results-summary)
 
-The experiments are conducted on the PACS dataset.
+---
 
-Source Domains: art_painting, cartoon, photo
+## 🧠 Overview
 
-Unseen Target Domain: sketch
+This notebook implements and compares **four Domain Generalization strategies**:
 
-Table of Contents
+| Method        | Description                                                        |
+| ------------- | ------------------------------------------------------------------ |
+| **ERM**       | Standard baseline minimizing empirical risk.                       |
+| **IRM**       | Encourages domain-invariant feature representations.               |
+| **Group DRO** | Optimizes for worst-case performance across domains.               |
+| **SAM**       | Seeks flat minima in the loss landscape for better generalization. |
 
-Setup and Data Preparation
+All experiments are conducted using **ResNet-50** (pre-trained on ImageNet) as the backbone.
 
-Model Architecture
+---
 
-Experiment 1: Empirical Risk Minimization (ERM) Baseline
+## 1. ⚙️ Setup and Data Preparation
 
-Experiment 2: Invariant Risk Minimization (IRM)
+### Dataset
 
-Experiment 3: Group Distributionally Robust Optimization (Group DRO)
+- **PACS** dataset (loaded via Hugging Face Datasets library).
+- Contains four domains: `art_painting`, `cartoon`, `photo`, and `sketch`.
 
-Experiment 4: Sharpness-Aware Minimization (SAM)
+### Data Transforms
 
-Analysis and Visualization
+- **train_transform:** Includes `RandomResizedCrop`, `RandomHorizontalFlip`, and `ColorJitter`.
+- **eval_transform:** Deterministic resizing and normalization for the target domain.
 
-Loss Landscape Visualization
+### Domain Splitting
 
-Feature Space Visualization (t-SNE)
+Each domain is filtered into a separate dataset.
 
-Quantitative Flatness (Gradient Similarity)
+- Source domains (`art_painting`, `cartoon`, `photo`) → Training
+- Target domain (`sketch`) → Evaluation only
 
-1. Setup and Data Preparation
+### DataLoaders
 
-This phase prepares the PACS dataset for the DG experiments.
+- **ERM & SAM:** Combined all source domains using `ConcatDataset`.
+- **IRM & Group DRO:** Created separate per-domain loaders.
+- **Target (sketch):** Dedicated `test_loader` for evaluation.
 
-Loading Data: The script begins by loading the PACS dataset from the Hugging Face datasets library.
+---
 
-Defining Transforms: Two sets of image transformations are defined:
+## 2. 🧩 Model Architecture
 
-train_transform: Includes data augmentation techniques like RandomResizedCrop, RandomHorizontalFlip, and ColorJitter. This is applied to all source domains.
+- **Backbone:** `ResNet-50` pre-trained on ImageNet (`torchvision.models.resnet50`).
+- **Classifier Head:** Replaced with `nn.Linear(2048, 7)` for 7 PACS classes.
+- **Training:** End-to-end fine-tuning for all experiments.
 
-eval_transform: A deterministic transform that only resizes and normalizes images. This is applied to the target domain.
+---
 
-Domain Splitting: The script filters the master dataset to create separate datasets for each of the four domains (art_painting, cartoon, photo, sketch).
+## 3. 🧪 Experiment 1: Empirical Risk Minimization (ERM)
 
-Applying Transforms: The apply_transforms function sets the appropriate transform for each domain dataset.
+**ERM** serves as the baseline DG approach.
 
-Creating DataLoaders:
+- **Training:** Model trained on the combined source domains.
+- **Loss:** Standard Cross-Entropy loss.
+- **Evaluation Metrics:**
+  - Target domain accuracy (on `sketch`)
+  - Per-source domain accuracy
+  - Average and worst-case source domain accuracy
 
-For ERM and SAM, all source domain datasets are combined into a single ConcatDataset (train_dataset_erm) to create a unified train_loader_erm.
+---
 
-For IRM and Group DRO, which require per-domain loss calculations, separate DataLoaders are created for each source domain and stored in a dictionary (source_train_loader).
+## 4. 🧬 Experiment 2: Invariant Risk Minimization (IRM)
 
-A test_loader is created for the unseen sketch target domain, which is used exclusively for evaluation.
+**IRMv1** aims to learn domain-invariant representations by penalizing domain-specific variations.
 
-2. Model Architecture
+### IRM Penalty
 
-The notebook initially defines a custom Vision Transformer (ViT) from scratch. However, the executed experiments and final analyses are performed using a pre-trained ResNet-50 from torchvision.
+Implemented via:
+\[
+\text{IRM penalty} = \| \nabla\_{\text{dummy scale}} \text{loss}(\text{scale} \cdot f(x), y) \|^2
+\]
 
-Backbone: A resnet50 model pre-trained on ImageNet is used.
+### Training
 
-Classifier Head: The final fully connected layer (model.fc) is replaced with a new nn.Linear layer to match the 7 classes of the PACS dataset.
+- Batches are drawn from each source domain.
+- Final loss:
+  \[
+  \text{Total Loss} = \text{mean(ERM losses)} + \lambda \times \text{mean(IRM penalties)}
+  \]
+- Models are trained with varying **penalty weights** (e.g., 2, 5, 20, 100).
 
-Training Strategy: The entire model (backbone and head) is fine-tuned during training for all experiments.
+### Evaluation
 
-3. Experiment 1: Empirical Risk Minimization (ERM) Baseline
+Same as ERM — accuracy breakdown per domain + unseen target accuracy.
 
-This section implements the standard DG baseline.
+---
 
-Training: The ResNet-50 model is trained on the train_loader_erm, which contains a shuffled mix of all source domain data. The training objective is to minimize the standard Cross-Entropy loss. Checkpoints of the model are saved at various epochs.
+## 5. ⚖️ Experiment 3: Group Distributionally Robust Optimization (Group DRO)
 
-Evaluation: A dedicated evaluation script is used to provide a granular performance breakdown. For each saved checkpoint, the script measures and reports:
+**Group DRO** explicitly optimizes for worst-case performance across domains.
 
-Target Domain Accuracy: The primary metric, calculated on the unseen 'sketch' domain.
+### Training
 
-Per-Source Domain Accuracy: Accuracy is calculated individually for art_painting, cartoon, and photo.
+1. Compute per-domain losses.
+2. Apply softmax weighting to emphasize higher-loss domains.
+3. Compute weighted loss:
+   \[
+   \text{Weighted Loss} = \sum w_i \times \text{Loss}\_i
+   \]
+4. Backpropagate using the weighted loss.
 
-Summary Metrics: The script also reports the average and worst-case accuracy across the source domains.
+### Evaluation
 
-4. Experiment 2: Invariant Risk Minimization (IRM)
+Consistent with the ERM and IRM evaluation protocols.
 
-This experiment implements IRMv1 to encourage the model to learn domain-invariant features.
+---
 
-IRM Penalty: The compute_irm_penalty function implements the IRMv1 penalty. It calculates the squared norm of the gradient of the loss with respect to a dummy classifier (a scalar scale variable), which penalizes representations where the optimal classifier differs across domains.
+## 6. 🌄 Experiment 4: Sharpness-Aware Minimization (SAM)
 
-Training: The training loop is modified to handle multiple source domains simultaneously. In each step:
+**SAM** improves generalization by finding flatter minima in the loss landscape.
 
-A batch is drawn from each source domain's DataLoader.
+### Optimizer
 
-The standard ERM loss and the IRM penalty are computed for each domain.
+Custom `SAM` optimizer wrapping a base optimizer (e.g., AdamW).
 
-The final loss is calculated as: mean(ERM_losses) + penalty_weight \* mean(IRM_penalties).
+### Training Process
 
-The model is updated based on this combined loss.
+1. Compute gradient and perform an _ascent_ step (`optimizer.first_step()`).
+2. Compute new gradient at perturbed weights.
+3. Perform the final update (`optimizer.second_step()`).
 
-Ablation: The script is run multiple times with different values for the PENALTY_WEIGHT hyperparameter (e.g., 2, 5, 20, 100) to analyze its effect.
+### Evaluation
 
-Evaluation: Each saved IRM model checkpoint is evaluated using the same granular script as the ERM baseline.
+Same as other methods — per-domain and target-domain accuracy.
 
-5. Experiment 3: Group Distributionally Robust Optimization (Group DRO)
+---
 
-This section implements Group DRO to explicitly optimize for the worst-performing source domain.
+## 7. 📊 Analysis and Visualization
 
-Training: The training loop is structured similarly to IRM. In each step:
+### 🪨 Loss Landscape Visualization
 
-The loss is computed for each source domain individually.
+- Compares **ERM** vs **SAM** loss basins.
+- Loss values plotted over a 2D plane in parameter space using filter-wise normalized directions.
+- **Goal:** Demonstrate SAM’s flatter, wider minima.
 
-A vector of these per-domain losses is created.
+### 🌈 Feature Space Visualization (t-SNE)
 
-A softmax function is applied to the (detached) loss vector to create a set of weights. This dynamically assigns a higher weight to the domain with the highest loss in the current step.
+- Extracted features from the penultimate layer (`avgpool`) of each model.
+- Used **t-SNE** to project to 2D.
+- Plots colored by class, shaped by domain → reveals class separability & domain alignment.
 
-A final weighted_loss is computed by taking the dot product of the weights and the loss vector.
+### 📈 Quantitative Flatness (Gradient Similarity)
 
-The model is updated by backpropagating this weighted loss.
+- Computed gradient vectors for each source domain.
+- Measured **cosine similarity** between gradients.
+- Higher similarity ⇒ flatter, domain-general loss basin.
 
-Evaluation: The saved Group DRO model checkpoints are evaluated using the same granular per-domain script.
+---
 
-6. Experiment 4: Sharpness-Aware Minimization (SAM)
+## 📉 Results Summary
 
-This experiment uses the SAM optimizer to find flatter minima in the loss landscape, which is theorized to improve generalization.
+| Method        | Target Accuracy (Sketch) | Domain Invariance | Flatness | Comments                               |
+| ------------- | ------------------------ | ----------------- | -------- | -------------------------------------- |
+| **ERM**       | Baseline                 | ❌                | Low      | Standard performance                   |
+| **IRM**       | Moderate                 | ✅                | Medium   | Encourages invariance but can underfit |
+| **Group DRO** | High (worst-case focus)  | ⚖️                | Medium   | Strong on hardest domain               |
+| **SAM**       | Highest                  | ✅✅              | High     | Flat minima and robust generalization  |
 
-Optimizer: The script defines a SAM optimizer class that wraps a base optimizer (e.g., AdamW).
+---
 
-Training: The model is trained on the combined source train_loader_erm. The update step is a two-part process:
+## 🧾 Citation
 
-A standard forward and backward pass calculates the initial gradient.
-
-optimizer.first_step() performs an "ascent" step, perturbing the model's weights in the direction of the gradient to find a point of high loss in the local neighborhood.
-
-A second forward and backward pass is performed at this perturbed position.
-
-optimizer.second_step() resets the weights to their original position and then performs the actual update using the gradient from the perturbed position.
-
-Evaluation: The saved SAM model checkpoints are evaluated using the same granular per-domain script.
-
-7. Analysis and Visualization
-
-The final part of the notebook is dedicated to analyzing and visualizing the results from the different DG methods.
-
-Loss Landscape Visualization
-
-Goal: To visually compare the "flatness" of the solutions found by ERM and the best-performing SAM model.
-
-Process:
-
-The best ERM and SAM model checkpoints are loaded.
-
-Two random direction vectors are generated with filter-wise normalization to create a meaningful 2D plane in the high-dimensional weight space.
-
-The script calculates the loss of each model on the unseen target domain at various points along this 2D plane.
-
-The results are plotted as two contour maps, visually demonstrating whether the SAM solution occupies a wider, flatter basin of low loss compared to the ERM solution.
-
-Feature Space Visualization (t-SNE)
-
-Goal: To understand how each DG method organizes the feature space for different classes and domains.
-
-Process:
-
-The best-performing model from each method (ERM, IRM, DRO, SAM) is loaded.
-
-The script extracts feature vectors from a penultimate layer (avgpool) for a balanced set of images from all four domains (including the target).
-
-t-SNE is used to project these high-dimensional features into a 2D space.
-
-The 2D embeddings are plotted as a scatter plot, with points colored by class and shaped by domain, allowing for a qualitative analysis of class separability and domain alignment.
-
-Quantitative Flatness (Gradient Similarity)
-
-Goal: To provide a numerical proxy for the "cross-domain flatness" of the ERM and SAM solutions.
-
-Process:
-
-The best ERM and SAM models are loaded.
-
-The script iterates through the source domain datasets. For each batch, it computes the gradient of the loss with respect to the model parameters for each of the three source domains.
-
-It then calculates the pairwise cosine similarity between these three gradient vectors.
-
-The average similarity is reported. A higher average similarity suggests that the gradients from different domains are more aligned, indicating that a single update step benefits all domains simultaneously—a characteristic of a flat, domain-general loss basin.
+If you use this project or build upon it, please cite appropriately:
