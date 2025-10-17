@@ -1,134 +1,193 @@
-Domain Adaptation on the PACS Dataset
-Overview
+# 🌐 Domain Adaptation on the PACS Dataset
 
-This project investigates multiple domain adaptation strategies using the PACS dataset, a benchmark for evaluating visual recognition models under distributional shifts across different domains.
-The objective is to assess how effectively various adaptation techniques can improve generalization from a labeled source domain to an unlabeled target domain.
+This project investigates multiple **Domain Adaptation (DA)** strategies using the **PACS dataset** — a widely used benchmark for evaluating visual recognition models under **distributional shifts** across distinct visual domains.
 
-Methodology
+The goal is to assess how effectively various adaptation techniques improve **generalization from a labeled source domain** to an **unlabeled target domain**.
 
-The notebook is organized into several sections, each corresponding to a specific domain adaptation approach. Every method is independently trained, evaluated, and analyzed based on its performance on both the source and target domains.
+---
 
-1. Source-Only Baseline
+## 📘 Table of Contents
 
-Description:
-A standard ResNet-50 model is trained exclusively on labeled source domain data without any domain adaptation mechanism.
+1. [Overview](#overview)  
+2. [Methodology](#methodology)  
+   - [1. Source-Only Baseline](#1-source-only-baseline)  
+   - [2. Domain-Adversarial Neural Network (DANN)](#2-domain-adversarial-neural-network-dann)  
+   - [3. Deep Adaptation Network (DAN)](#3-deep-adaptation-network-dan)  
+   - [4. Conditional Domain-Adversarial Network (CDAN)](#4-conditional-domain-adversarial-network-cdan)  
+   - [5. Self-Training via Pseudo-Labeling](#5-self-training-via-pseudo-labeling)  
+   - [6. Concept Shift Analysis](#6-concept-shift-analysis)  
+   - [7. Visualizations](#7-visualizations)  
+3. [Key Experimental Parameters](#key-experimental-parameters)  
+4. [Summary](#summary)  
+5. [Setup & Requirements](#setup--requirements)  
+6. [Citation](#citation)  
 
-Purpose:
-Establishes a baseline for comparison. The difference between source and target test accuracies quantifies the severity of the domain shift.
+---
 
-Output:
+## 🧠 Overview
 
-Accuracy on source and target domains
+The notebook implements and compares **five domain adaptation methods** — ranging from simple baselines to advanced adversarial and semi-supervised techniques.  
+Each method is trained, evaluated, and analyzed independently on both **source** and **target** domains.
 
-Trained model saved as source_only_model.pth
+All experiments use **ResNet-50** as the base architecture, pretrained on ImageNet.
 
-2. Domain-Adversarial Neural Network (DANN)
+---
 
-Description:
-Implements the DANN architecture, which includes a domain discriminator alongside the label predictor.
-A Gradient Reversal Layer (GRL) is employed to promote domain-invariant feature learning.
+## 🧪 Methodology
 
-Purpose:
-To align source and target feature distributions adversarially.
-The GRL reverses gradients from the domain discriminator, forcing the feature extractor to produce features that are indistinguishable across domains.
+### 1. 🧩 Source-Only Baseline
 
-Output:
+**Description:**  
+A standard ResNet-50 model is trained *only* on labeled source domain data, with no adaptation.
 
-Label and domain loss logs
+**Purpose:**  
+Serves as a baseline to measure the magnitude of domain shift — the gap between source and target performance.
 
-Source and target accuracies
+**Outputs:**
+- Source and target test accuracies  
+- Model checkpoint: `source_only_model.pth`
 
-Model saved as dann_model_finetuned.pth
+---
 
-3. Deep Adaptation Network (DAN)
+### 2. ⚔️ Domain-Adversarial Neural Network (DANN)
 
-Description:
-Implements the DAN framework, which aligns source and target features using the Maximum Mean Discrepancy (MMD) criterion.
+**Description:**  
+Implements the **DANN** architecture featuring:
+- A **domain discriminator** alongside the label predictor  
+- A **Gradient Reversal Layer (GRL)** that enforces domain invariance
 
-Purpose:
-To explicitly minimize the statistical distance between source and target feature distributions in a reproducing kernel Hilbert space (RKHS).
+**Purpose:**  
+To align source and target feature distributions *adversarially*.  
+The GRL reverses gradients from the discriminator, encouraging domain-invariant features.
 
-Output:
+**Outputs:**
+- Label and domain loss logs  
+- Source and target domain accuracies  
+- Model checkpoint: `dann_model_finetuned.pth`
 
-Training logs (label and MMD losses)
+---
 
-Source and target accuracies
+### 3. 🔗 Deep Adaptation Network (DAN)
 
-Model saved as dan_model_finetuned_lambda_X.pth
+**Description:**  
+Implements **DAN**, which aligns source and target representations using the **Maximum Mean Discrepancy (MMD)** criterion.
 
-4. Conditional Domain-Adversarial Network (CDAN)
+**Purpose:**  
+To minimize the statistical distance between source and target features in **Reproducing Kernel Hilbert Space (RKHS)**.
 
-Description:
-An extension of DANN that conditions the domain discriminator on both feature representations and class predictions.
+**Outputs:**
+- Training logs (label + MMD losses)  
+- Source and target accuracies  
+- Model checkpoint: `dan_model_finetuned_lambda_X.pth`
 
-Purpose:
-To achieve fine-grained domain alignment by incorporating class information into the adaptation process, ensuring that similar classes across domains remain aligned.
+---
 
-Output:
+### 4. 🌀 Conditional Domain-Adversarial Network (CDAN)
 
-Training logs and final accuracies
+**Description:**  
+An extension of DANN that **conditions the domain discriminator** on both:
+- The **feature representations**, and  
+- The **class predictions**
 
-Model saved as cdan_model_finetuned_lambda_X.pth
+**Purpose:**  
+To enable *class-aware domain alignment*, ensuring that semantically similar classes remain well-aligned across domains.
 
-5. Self-Training via Pseudo-Labeling
+**Outputs:**
+- Training logs and evaluation metrics  
+- Source and target domain accuracies  
+- Model checkpoint: `cdan_model_finetuned_lambda_X.pth`
 
-Description:
-A semi-supervised approach where the model generates pseudo-labels for target domain samples with high prediction confidence.
+---
 
-Purpose:
-To leverage unlabeled target data.
-Samples exceeding the confidence threshold are combined with source-labeled data to fine-tune the model, improving adaptation without explicit target supervision.
+### 5. 🧩 Self-Training via Pseudo-Labeling
 
-Output:
+**Description:**  
+A **semi-supervised** adaptation strategy:
+- The model generates **pseudo-labels** for target samples with high prediction confidence.
+- Confident pseudo-labeled samples are mixed with source data for fine-tuning.
 
-Number of pseudo-labels generated
+**Purpose:**  
+To exploit **unlabeled target data** for improved adaptation without explicit target supervision.
 
-Final target domain accuracy
+**Outputs:**
+- Number of pseudo-labels generated  
+- Final target accuracy  
+- Updated model weights
 
-Updated model weights
+---
 
-6. Concept Shift Analysis
+### 6. 🔍 Concept Shift Analysis
 
-Description:
-Evaluates model robustness under simulated distribution shifts, testing generalization under more realistic conditions.
+**Description:**  
+Tests model robustness under *simulated distribution shifts* (e.g., label or class imbalance).
 
-Purpose:
-Two key scenarios are examined:
+**Purpose:**  
+Evaluate generalization under more realistic conditions:
+- **Missing Class (Label Shift):** Excludes one class from the target domain.  
+- **Rare Class (Imbalanced Data):** Reduces the occurrence of a specific target class.
 
-Missing Class (Label Shift): Evaluates performance when a class present during training is absent from the target domain.
+**Outputs:**
+- Per-model accuracy scores on modified target datasets  
+- Confusion matrix visualizations for rare class scenarios
 
-Rare Class (Imbalanced Data): Examines model behavior when a target class is severely underrepresented.
+---
 
-Output:
+### 7. 🎨 Visualizations
 
-Accuracy scores for each model on modified target datasets
+**Description:**  
+t-SNE visualizations of learned features across domains.
 
-Confusion matrix plots for the rare class scenario
+**Purpose:**
+- **Domain Alignment:** Visual overlap between source (blue) and target (red) feature spaces  
+- **Class Separation:** Cluster tightness of same-class samples across domains
 
-7. Visualizations
+**Outputs:**
+- t-SNE scatter plots for each model (Source vs Target feature distributions)
 
-Description:
-Generates t-SNE visualizations to explore the learned feature representations of each model.
+---
 
-Purpose:
-To qualitatively assess domain alignment and class separation:
+## ⚙️ Key Experimental Parameters
 
-Domain Alignment: Visualizes overlap between source (blue) and target (red) features.
+| Parameter | Description |
+|------------|-------------|
+| **SOURCE_DOMAIN / TARGET_DOMAIN** | Source and target domains (e.g., `art_painting`, `cartoon`) |
+| **NUM_EPOCHS** | Total number of training epochs |
+| **LEARNING_RATE** | Learning rate for optimization |
+| **LAMBDA_WEIGHT** | Balances classification and adaptation losses (DAN/CDAN) |
+| **CONFIDENCE_THRESHOLD** | Minimum confidence for pseudo-labeling |
 
-Class Separation: Displays class-specific clustering across domains.
+---
 
-Output:
+## 📈 Summary
 
-t-SNE plots illustrating domain and class alignment for each model
+This project delivers a **comprehensive empirical study** of key **Domain Adaptation** methods:
 
-Key Experimental Parameters
-Parameter	Description
-SOURCE_DOMAIN / TARGET_DOMAIN	Specifies the source and target domains (e.g., art_painting, cartoon).
-NUM_EPOCHS	Number of training epochs.
-LEARNING_RATE	Learning rate for optimization.
-LAMBDA_WEIGHT	Balances classification and adaptation losses (used in DAN and CDAN).
-CONFIDENCE_THRESHOLD	Minimum confidence required to generate pseudo-labels in self-training.
-Summary
+| Method | Adaptation Type | Key Idea | Strength |
+|---------|----------------|-----------|-----------|
+| **Source-Only** | None | Baseline for domain shift | Simple, no adaptation |
+| **DANN** | Adversarial | Gradient reversal to align domains | Robust invariance |
+| **DAN** | Distribution-based | MMD alignment in feature space | Explicit feature matching |
+| **CDAN** | Conditional adversarial | Class-aware domain alignment | Fine-grained adaptation |
+| **Pseudo-Labeling** | Semi-supervised | Confidence-based self-training | Leverages unlabeled data |
 
-This project provides a comprehensive empirical comparison of contemporary domain adaptation techniques, including adversarial (DANN, CDAN), distribution-based (DAN), and semi-supervised (pseudo-labeling) methods.
-Through quantitative evaluation and qualitative visualization, the notebook highlights the strengths and limitations of each approach in mitigating domain shift across the diverse visual domains of the PACS dataset.
+**Outcome:**  
+Through quantitative metrics and t-SNE visualization, the notebook highlights how adversarial, distributional, and semi-supervised techniques mitigate domain shift in the **PACS** dataset.
+
+---
+
+## 🛠️ Setup & Requirements
+
+### Dependencies
+- Python 3.9+
+- PyTorch ≥ 2.0
+- torchvision
+- numpy
+- scikit-learn
+- matplotlib
+- tqdm
+- seaborn
+- datasets (Hugging Face)
+
+### Installation
+```bash
+pip install torch torchvision numpy scikit-learn matplotlib tqdm seaborn datasets
