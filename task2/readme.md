@@ -173,18 +173,3 @@ Same as other methods — per-domain and target-domain accuracy.
 - Higher similarity ⇒ flatter, domain-general loss basin.
 
 ---
-
-## 📉 Results Summary
-
-| Method        | Target Accuracy (Sketch) | Domain Invariance | Flatness | Comments                               |
-| ------------- | ------------------------ | ----------------- | -------- | -------------------------------------- |
-| **ERM**       | Baseline                 | ❌                | Low      | Standard performance                   |
-| **IRM**       | Moderate                 | ✅                | Medium   | Encourages invariance but can underfit |
-| **Group DRO** | High (worst-case focus)  | ⚖️                | Medium   | Strong on hardest domain               |
-| **SAM**       | Highest                  | ✅✅              | High     | Flat minima and robust generalization  |
-
----
-
-## 🧾 Citation
-
-If you use this project or build upon it, please cite appropriately:
