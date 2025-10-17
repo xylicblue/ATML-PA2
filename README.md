@@ -122,8 +122,6 @@ This project systematically investigates three aspects of this challenge:
 
 ```bash
 # Clone the repository
-git clone https://github.com/<your-username>/<repo-name>.git
-cd <repo-name>
+git clone https://github.com/xylicblue/ATML-PA2
+cd ATML-PA2
 
-# Install dependencies
-pip install -r requirements.txt
